@@ -1,0 +1,110 @@
+---
+title: "Weight Lifting Categorization Project"
+author: "Verene Martin"
+output: html_document
+---
+
+## Introduction
+For this project we were instructed to use a data set consisting of accelerometer data recorded while six healthy individuals lifted weights properly, and improperly in four different ways. Alphabetic categories were assigned according to each of the five possible ways weights were lifted. Our objective in this project is to use the training data to train a classification model, and then apply this classification model to a test data set consisting of twenty records with the class label previously removed.
+
+## Method
+
+First we read the data files containing training and test sets from the Internet and store in our environment.
+
+```{r, cache=TRUE}
+library(RCurl)
+train<-read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", method="libcurl"))
+test<-read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", method="libcurl"))
+```
+
+### Missing Values and Imputation
+
+Many variables in the data appear to be missing values for most observations. The following code removes variables from the training and test datasets for which at least half of the values are missing.
+
+```{r}
+#Get rid of mostly empty features
+nr<-dim(train)[1]
+fracMiss<-sapply(train, function(x) sum(x==''|x=='#DIV/0!'|is.na(x))/nr)
+filterTrain<-train[,fracMiss<0.5]
+filterTest<-test[,fracMiss<0.5]
+
+#Next we check how many total missing values are left in the dataset.
+sum(sapply(filterTrain, function(x) sum(x==''|x=='#DIV/0!'|is.na(x))/nr))
+```
+
+The final line in the code chunk above, we see there are no more missing values included in the dataset. Thefore, there is no need to impute missing values.
+
+### Near Zero Variance
+
+Next we remove zero-variance and near-zero-variance variables from the training and test sets. From earlier analysis we know there are no zero-variance variables, and only one near-zero-variance variable (new_window) that are removed by the code below.
+
+```{r}
+#Check for low variance predictors
+library(caret)
+nzv<-nearZeroVar(filterTrain)
+filterTrain<-filterTrain[,-nzv] #Filter out near zero variance variables
+filterTest<-filterTest[,-nzv]
+```
+
+### Data-Specific Pre-Processing
+
+On further inspection of the data, we know certain variables in the data set will not be informative to the prediction of the manner in which a user is lifting weights; these variables are specific to the test subjects (user_name, num_window), date and time during which the data were recorded (raw_timestamp_part_1, raw_timestamp_part2, cvtd_timestamp), and the row index of the data (X). These variables are removed from the test and training data sets.
+
+```{r}
+#Take out index numbers, user names, and time stamps, as these should have no predictive value
+filterTrain<-filterTrain[,-c(1:6)]
+filterTest<-filterTest[,-c(1:6)]
+```
+
+### Cross Validation and Out of Sample Accuracy
+
+Next we partition the pre-processed training set on the values of "classe", with 70% of the dataset used for training, and 30% of the dataset reserved for out of sample estimation of accuracy.
+
+```{r}
+#Divide filterTrain into two portions to estimate out of sample error.
+set.seed(541)
+idxTrain <- createDataPartition(y=filterTrain$classe, p=0.7, list=FALSE)
+reducedTrain<-filterTrain[idxTrain,]
+oosTrain<-filterTrain[-idxTrain,]
+```
+
+For our model, we chose to use k-folds cross validation, using 10 folds.
+
+```{r}
+#10-fold cross validation
+fitControl<-trainControl(method="repeatedcv", number=10, repeats=1)
+```
+
+### Model training
+
+Finally, we train the model on all remaining variables in the reducted and filtered training data, using the caret package Random Forest algorithm. From the lecture material, we expect random forest to be a well-suited model for this classification prediction problem.
+
+```{r, eval=FALSE}
+#Random Forest model:
+modRF<-train(classe ~ ., data=reducedTrain, method="rf", trControl=fitControl, prox=TRUE, verbose=FALSE)
+```
+
+```{r, echo=FALSE}
+modRF <- readRDS("modRF.rds")
+```
+
+## Conclusion
+
+### Out of Sample Error
+
+To determine the out of sample accuracy, we apply the model trained on the reduced training set above to the reserved 30% of the training data set. Since our model was not trained at all on the oosTrain data, comparing the predicted classes with the actual assigned classes in the oosTrain data will give us an idea of how well our model should generalize to novel data. From the code chunk below, we find an accuracy of 99.2%, or stated another way: an error rate of 0.8%, which is very good.
+
+```{r}
+#Check out of sample accuracy
+predOOSrf<-predict(modRF, oosTrain)
+accRF<-sum(predOOSrf==oosTrain$classe)/length(predOOSrf)
+#Out of sample error:
+1.0-accRF
+```
+
+### Prediction
+
+Now we can make our predictions on the filtered test data set. These answers were submitted online, and found to be correct.
+```{r}
+predict(modRF, filterTest)
+```

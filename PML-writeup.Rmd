@@ -5,11 +5,11 @@ output: html_document
 ---
 
 ## Introduction
-For this project we were instructed to use a data set consisting of accelerometer data recorded while six healthy individuals lifted weights properly, and improperly in four different ways. Alphabetic categories were assigned according to each of the five possible ways weights were lifted. Our objective in this project is to use the training data to train a classification model, and then apply this classification model to a test data set consisting of twenty records with the class label previously removed.
+For this project we were instructed to use a data set consisting of accelerometer data recorded while six healthy individuals lifted weights properly, and lifted weights improperly in four different ways. Alphabetic categories were assigned according to each of the five possible ways weights were lifted. Our objective in this project was to use a subset of the data to train a classification model and then apply this classification model to the remainder of the data (a held-out test data set) consisting of twenty records with the class label previously removed.
 
 ## Method
 
-First we read the data files containing training and test sets from the Internet and store in our environment.
+First we read the data files containing training and test sets from the Internet and stored them in our environment.
 
 ```{r, cache=TRUE}
 library(RCurl)
@@ -19,7 +19,7 @@ test<-read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-test
 
 ### Missing Values and Imputation
 
-Many variables in the data appear to be missing values for most observations. The following code removes variables from the training and test datasets for which at least half of the values are missing.
+Many features in the data appear to have missing values for most observations. The following code removes features from the training and test datasets for which at least half of the values are missing.
 
 ```{r}
 #Get rid of mostly empty features
@@ -32,7 +32,7 @@ filterTest<-test[,fracMiss<0.5]
 sum(sapply(filterTrain, function(x) sum(x==''|x=='#DIV/0!'|is.na(x))/nr))
 ```
 
-The final line in the code chunk above, we see there are no more missing values included in the dataset. Thefore, there is no need to impute missing values.
+The final line in the code chunk above, we see there are no more missing values included in the data set. Therefore, there is no need to impute missing values.
 
 ### Near Zero Variance
 
@@ -48,7 +48,7 @@ filterTest<-filterTest[,-nzv]
 
 ### Data-Specific Pre-Processing
 
-On further inspection of the data, we know certain variables in the data set will not be informative to the prediction of the manner in which a user is lifting weights; these variables are specific to the test subjects (user_name, num_window), date and time during which the data were recorded (raw_timestamp_part_1, raw_timestamp_part2, cvtd_timestamp), and the row index of the data (X). These variables are removed from the test and training data sets.
+On further inspection of the data, we know certain features in the data set will not be instructive to the prediction of the manner in which a user is lifting weights; these features are specific to the test subjects (e.g. user_name, num_window), date and time during which the data were recorded (e.g. raw_timestamp_part_1, raw_timestamp_part2, cvtd_timestamp), and the row index of the data (X). These features were removed from the test and training data sets.
 
 ```{r}
 #Take out index numbers, user names, and time stamps, as these should have no predictive value
@@ -58,7 +58,7 @@ filterTest<-filterTest[,-c(1:6)]
 
 ### Cross Validation and Out of Sample Accuracy
 
-Next we partition the pre-processed training set on the values of "classe", with 70% of the dataset used for training, and 30% of the dataset reserved for out of sample estimation of accuracy.
+Next we partitioned the pre-processed training set on the values of "classe", with 70% of the data set used for training, and 30% of the data set reserved for the out-of-sample estimation of accuracy.
 
 ```{r}
 #Divide filterTrain into two portions to estimate out of sample error.
@@ -77,7 +77,7 @@ fitControl<-trainControl(method="repeatedcv", number=10, repeats=1)
 
 ### Model training
 
-Finally, we train the model on all remaining variables in the reducted and filtered training data, using the caret package Random Forest algorithm. From the lecture material, we expect random forest to be a well-suited model for this classification prediction problem.
+Finally, we trained the model on all remaining features in the reduced and filtered training data, using the Random Forest algorithm from the caret package. From the lecture material, we expected random forest to be a well-suited model for this classification prediction problem.
 
 ```{r, eval=FALSE}
 #Random Forest model:
@@ -92,7 +92,7 @@ modRF <- readRDS("modRF.rds")
 
 ### Out of Sample Error
 
-To determine the out of sample accuracy, we apply the model trained on the reduced training set above to the reserved 30% of the training data set. Since our model was not trained at all on the oosTrain data, comparing the predicted classes with the actual assigned classes in the oosTrain data will give us an idea of how well our model should generalize to novel data. From the code chunk below, we find an accuracy of 99.2%, or stated another way: an error rate of 0.8%, which is very good.
+To determine the out-of-sample accuracy, we applied the model trained on the reduced training set above to the reserved 30% of the training data. Since our model was not trained at all on this test data, comparing the predicted classes with the actual assigned classes in the reserved data will give us an idea of how well our model should generalize to novel data. From the code chunk below, we found an accuracy of 99.2%. Stated another way, we found an error rate of 0.8%, which is very good.
 
 ```{r}
 #Check out of sample accuracy
@@ -104,7 +104,7 @@ accRF<-sum(predOOSrf==oosTrain$classe)/length(predOOSrf)
 
 ### Prediction
 
-Now we can make our predictions on the filtered test data set. These answers were submitted online, and found to be correct.
+Finally, we made our predictions on the filtered test data set. These answers were submitted online, and found to be correct.
 ```{r}
 predict(modRF, filterTest)
 ```
